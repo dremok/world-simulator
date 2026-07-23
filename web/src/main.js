@@ -21,6 +21,7 @@ const map = new maplibregl.Map({
 });
 
 const status = document.getElementById('hud-status');
+window.__map = map; // for browser test harness
 
 function toneColor(stats) {
   // Negative tone leans red, positive leans teal; intensity from volume.
