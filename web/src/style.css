@@ -198,6 +198,20 @@ body,
   font-size: 10px;
 }
 
+.event-card {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #10151b;
+  border-left: 2px solid #2a323c;
+  color: #a7b1ba;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.event-card a {
+  color: #3e8e8c;
+}
+
 #storyline-clear {
   margin-top: 6px;
   color: #c4ccd4;

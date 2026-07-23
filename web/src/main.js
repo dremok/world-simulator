@@ -176,6 +176,7 @@ map.on('load', async () => {
     map.setFilter('events', null);
     map.setPaintProperty('country-fill', 'fill-opacity', 1);
     selectedLi?.classList.remove('selected');
+    document.querySelectorAll('.storyline-cards').forEach((el) => el.remove());
     selectedLi = null;
     clearBtn.hidden = true;
   }
@@ -195,6 +196,22 @@ map.on('load', async () => {
       map.setFilter('events', ['in', ['get', 'id'], ['literal', detail.event_ids]]);
       map.setPaintProperty('country-fill', 'fill-opacity', 0.25);
       selectedLi?.classList.remove('selected');
+      document.querySelectorAll('.storyline-cards').forEach((el) => el.remove());
+      const cards = detail.events
+        .filter((ev) => ev.summary)
+        .slice(0, 5)
+        .map((ev) =>
+          `<div class="event-card">${ev.summary}` +
+          `<div class="storyline-meta">severity ${ev.severity ?? '?'} &middot; ` +
+          `${new Date(ev.occurred_at).toUTCString().slice(5, 22)} &middot; ` +
+          `<a href="${ev.url}" target="_blank" rel="noopener">source</a></div></div>`
+        ).join('');
+      if (cards) {
+        const wrap = document.createElement('div');
+        wrap.className = 'storyline-cards';
+        wrap.innerHTML = cards;
+        li.appendChild(wrap);
+      }
       li.classList.add('selected');
       selectedLi = li;
       clearBtn.hidden = false;
