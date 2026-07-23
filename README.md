@@ -44,7 +44,7 @@ uv pip install -r requirements.txt   # created in Phase 0
 cp .env.example .env                 # fill in values
 ```
 
-Railway setup (CLI is already logged in as max.y.leander@gmail.com on this machine):
+Railway setup (install the Railway CLI and `railway login` first):
 
 ```bash
 railway init          # create project "world-simulator"

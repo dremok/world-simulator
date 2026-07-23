@@ -20,7 +20,7 @@ Update this section as work progresses.
 
 ## Railway
 
-- The Railway CLI is installed and logged in on this machine as max.y.leander@gmail.com (`railway whoami` to confirm).
+- The Railway CLI is installed and logged in on this machine (`railway whoami` to confirm).
 - One Railway project, `world-simulator`, with three services: `api` (FastAPI + static frontend), `worker` (cron every 15 min), `db` (Postgres plugin).
 - `railway init` has NOT been run yet; that's part of Phase 0.
 - Use `railway variables` to set `ANTHROPIC_API_KEY` and config. Apps read `DATABASE_URL` from Railway's injected env.
@@ -38,8 +38,8 @@ Update this section as work progresses.
 - After every frontend change: load the map locally (`npm run dev` in `web/`) and look at it.
 - Deploy early. The Phase 0 goal is a live earthquake map on a public Railway URL; keep it deployable from then on.
 
-## Owner context that shapes features
+## Product principles
 
-- Personal lenses (PLAN.md backlog #5) should include: AI/tech, portfolio themes (uranium, defense, clean water, semiconductors, robotics, India), Sweden (Lund/Malmö), and Central Luzon, Philippines (family in Tarlac, house in Porac; typhoon/volcano/flood alerts there are genuinely useful, not decorative).
+- This is a general tool, not a personal dashboard. Anything user-specific (feed lists, lenses, regions of interest) belongs in config or the DB, never hardcoded.
 - Aesthetic: dark, still, restrained. Anomaly view is the default lens. See PLAN.md section 6.
 - Writing style for any user-facing or shareable text: no em dashes, no AI-slop phrasing, human register.

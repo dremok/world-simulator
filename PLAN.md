@@ -41,7 +41,7 @@ Backbone first, garnish later.
 ### Tier 2: quality and locality (Phase 1-2)
 
 - Curated RSS: Reuters, BBC World, AP, Al Jazeera, The Guardian. These are for the LLM enrichment tier, since GDELT tells you *that* something happened but headlines tell the story.
-- Sweden: SVT, DN. Philippines: Rappler, ABS-CBN, PhilStar (Central Luzon matters: family in Tarlac, house in Porac).
+- Regional/local feeds: the feed list is config, not code, so anyone can add outlets for the regions they care about.
 - AI/tech layer: Hacker News API, arXiv cs.AI/cs.LG RSS.
 - **GDACS** (disaster alerts, free XML/GeoJSON) and **NASA FIRMS** (active fires).
 
@@ -153,17 +153,17 @@ Ranked roughly by leverage-per-effort for making this *not just another news das
 2. **Daily World Diff.** One LLM call each morning: "here's yesterday's state delta; write 10 bullets on what actually changed." Surfaced in the UI and pushable to Telegram. Replaces reading the news entirely, which is the stated goal.
 3. **Relation arcs.** Animated great-circle arcs between countries/entities for sanctions, talks, attacks, aid, trade deals (deck.gl ArcLayer over MapLibre). Watching diplomacy as flowing light is the "strategy game" feel.
 4. **Rashomon view.** Same storyline, sources from different geopolitical blocs side by side, with an LLM divergence note: "Western wires frame X as A; Chinese state media frames it as B; Al Jazeera leads with C." Bias made visible instead of hidden.
-5. **Personal lenses.** Named filter presets: *AI* (HN/arXiv layer + chip supply chain events), *Portfolio* (events tagged to thematic bets: uranium, defense, water, semiconductors, India), *Sweden*, *Central Luzon* (typhoon/volcano/flood watch for Porac and Tarlac, genuinely useful). Lens = saved query + custom index gauge.
+5. **Lenses.** Named filter presets a user defines once and switches between: a topic lens (*AI*: HN/arXiv layer + chip supply chain events), a sector lens (events tagged to industries or tickers you follow), a home-region lens (local feeds + disaster alerts for places you have people or property). Lens = saved query + custom index gauge, stored in the DB so they're shareable.
 6. **World MCP server.** Expose `world_state(country)`, `storylines(topic)`, `what_changed(since)` as MCP tools over the same DB. Any Claude session on any machine can then ask "what's happening in the Philippines right now". Cheap to build once the API exists.
 7. **Forecast layer.** Overlay Metaculus/Polymarket probabilities on relevant storylines. Later: have the LLM write weekly falsifiable predictions per storyline, store them, score them against what happens, and show its calibration curve. A simulator that predicts and gets graded.
 8. **Time-lapse exports.** Render the last 90 days of the anomaly choropleth to a shareable 20-second MP4. Great demo artifact, trivially built from state snapshots.
-9. **Sonification.** Ambient generative soundtrack driven by world state: base drone follows global tension, event types trigger instrument hits, regional pan follows longitude. There are radio sound generators in the personal-assistant workspace to borrow from. Uniquely Leanderz.
-10. **Entity knowledge graph.** `entity_relations` is already a graph; render ego-networks on entity dossiers, run co-occurrence embeddings, and later GNN link prediction ("these two actors are about to interact"). Fits the GraphSAGE research thread.
+9. **Sonification.** Ambient generative soundtrack driven by world state: base drone follows global tension, event types trigger instrument hits, regional pan follows longitude. Leave the tab open and *hear* the world change.
+10. **Entity knowledge graph.** `entity_relations` is already a graph; render ego-networks on entity dossiers, run co-occurrence embeddings, and later GNN link prediction ("these two actors are about to interact").
 11. **Day/night terminator + "quiet zones".** Subtle solar terminator overlay, and positive framing: regions with unusually *low* tension get a calm glow. The map shouldn't only know how to scream.
 12. **Counterfactual mode.** For a selected storyline, LLM generates three plausible next-week scenarios with probabilities; kept and scored like the forecast layer. Reading these weekly beats most punditry.
 13. **Attention vs. importance split-map.** Two small multiples: what media covers vs. what the importance model scores. The gap *is* the media-criticism feature; under-covered crises light up.
 14. **Historical backfill.** GDELT goes back to 1979. Ingest key windows (fall of USSR, 9/11, Arab Spring, COVID) and let the replay slider time-travel decades. Turns the tool into a history machine.
-15. **Weekly "world state" email.** Reuse the daily-briefing infrastructure from personal-assistant: Sunday evening summary with the week's diff, top storylines, index sparklines.
+15. **Weekly "world state" email.** Sunday evening summary with the week's diff, top storylines, and index sparklines. Simple SMTP job over data the API already serves.
 
 ## 9. Costs and constraints
 
@@ -174,4 +174,4 @@ Ranked roughly by leverage-per-effort for making this *not just another news das
 
 ## 10. Definition of done for the MVP
 
-You open one URL. A dark world map shows colored countries (anomaly view), dots for today's important events, and a storyline sidebar. It updated itself 15 minutes ago without you touching anything. You hover Sweden, and it tells you what changed today in one sentence. You stop opening news sites.
+You open one URL. A dark world map shows colored countries (anomaly view), dots for today's important events, and a storyline sidebar. It updated itself 15 minutes ago without you touching anything. You hover any country, and it tells you what changed there today in one sentence. You stop opening news sites.
