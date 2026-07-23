@@ -400,6 +400,22 @@ map.on('load', async () => {
     }, 200);
   });
 
+  // ---- Briefing: the world in one card ----
+  document.getElementById('briefing-toggle').addEventListener('click', async () => {
+    if (!relCard.hidden) { relCard.hidden = true; return; }
+    const b = await (await fetch('/briefing')).json();
+    const stories = b.storylines.map((s) =>
+      `<div class="event-card"><b>${s.title}</b><div class="storyline-meta">${s.summary}</div></div>`).join('');
+    const evs = b.significant_events.slice(0, 6).map((e) =>
+      `<div class="event-card">sev ${e.severity} &middot; ${e.summary}</div>`).join('');
+    relCard.innerHTML =
+      `<span class="rel-title">world briefing</span>${stories}` +
+      `<br><span class="rel-title">significant events &middot; 24h</span>${evs}` +
+      `<div class="rel-clear">&times; close</div>`;
+    relCard.hidden = false;
+    relCard.querySelector('.rel-clear').addEventListener('click', () => { relCard.hidden = true; });
+  });
+
   // ---- Actors: most active entities and their strongest relations ----
   document.getElementById('actors-toggle').addEventListener('click', async () => {
     if (!relCard.hidden) { relCard.hidden = true; return; }

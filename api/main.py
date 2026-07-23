@@ -260,6 +260,40 @@ def relation(
     }
 
 
+@app.get("/briefing")
+def briefing() -> dict:
+    """A composed world briefing from enriched data. No LLM at serve time."""
+    with _connect() as conn:
+        stories = conn.execute(
+            """
+            SELECT title, summary, heat FROM storylines
+            WHERE status = 'active' AND summary IS NOT NULL
+            ORDER BY heat DESC LIMIT 6
+            """
+        ).fetchall()
+        events = conn.execute(
+            """
+            SELECT summary, severity FROM events
+            WHERE summary IS NOT NULL AND severity >= 3
+              AND occurred_at > now() - interval '24 hours'
+            GROUP BY summary, severity
+            ORDER BY severity DESC LIMIT 8
+            """
+        ).fetchall()
+        tension = conn.execute(
+            """
+            SELECT DISTINCT ON (country_iso) country_iso, tension
+            FROM country_state ORDER BY country_iso, ts DESC
+            """
+        ).fetchall()
+    movers = sorted(tension, key=lambda r: -r[1])[:5]
+    return {
+        "storylines": [{"title": t, "summary": s, "heat": round(h, 1)} for t, s, h in stories],
+        "significant_events": [{"summary": s, "severity": sev} for s, sev in events],
+        "highest_tension": [{"country": c, "tension": round(t, 1)} for c, t in movers],
+    }
+
+
 @app.get("/entities/top")
 def entities_top(hours: int = Query(default=72, ge=1, le=24 * 90), limit: int = Query(default=20, ge=1, le=100)) -> list:
     sql = """

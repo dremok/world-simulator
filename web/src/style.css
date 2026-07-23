@@ -103,6 +103,7 @@ body,
   cursor: pointer;
 }
 
+#briefing-toggle,
 #actors-toggle,
 #diff-toggle,
 #relation-toggle {
