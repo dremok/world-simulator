@@ -243,6 +243,46 @@ def relation(
     }
 
 
+@app.get("/entities/top")
+def entities_top(hours: int = Query(default=72, ge=1, le=24 * 90), limit: int = Query(default=20, ge=1, le=100)) -> list:
+    sql = """
+        SELECT en.id, en.name,
+               count(*) AS mentions,
+               sum(e.importance) AS weight
+        FROM entity_mentions m
+        JOIN entities en ON en.id = m.entity_id
+        JOIN events e ON e.id = m.event_id
+        WHERE e.occurred_at > now() - make_interval(hours => %s)
+        GROUP BY en.id
+        ORDER BY weight DESC
+        LIMIT %s
+    """
+    with _connect() as conn:
+        rows = conn.execute(sql, (hours, limit)).fetchall()
+        out = []
+        for id_, name, mentions, weight in rows:
+            rels = conn.execute(
+                """
+                SELECT CASE WHEN r.a_id = %s THEN eb.name ELSE ea.name END AS other,
+                       r.relation, r.weight
+                FROM entity_relations r
+                JOIN entities ea ON ea.id = r.a_id
+                JOIN entities eb ON eb.id = r.b_id
+                WHERE r.a_id = %s OR r.b_id = %s
+                ORDER BY r.weight DESC LIMIT 5
+                """,
+                (id_, id_, id_),
+            ).fetchall()
+            out.append({
+                "id": id_, "name": name, "mentions": mentions,
+                "weight": round(weight, 2),
+                "top_relations": [
+                    {"other": o, "relation": rel, "weight": round(w, 2)} for o, rel, w in rels
+                ],
+            })
+    return out
+
+
 @app.get("/diff")
 def world_diff(since: str = Query(...)) -> dict:
     """What changed: storylines opened or closed since the given ISO timestamp."""

@@ -2,7 +2,7 @@
 
 import os
 
-from extract import storylines
+from extract import entities, storylines
 from ingest import gdelt, rss
 from ingest.db import connect
 from sim import state
@@ -19,6 +19,7 @@ def main() -> None:
         if _enabled("RSS_ENABLED"):
             rss.run(conn)
         storylines.run(conn)
+        entities.run(conn)
         state.run(conn)
 
 
