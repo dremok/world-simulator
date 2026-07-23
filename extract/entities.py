@@ -18,25 +18,41 @@ GENERIC = {
 }
 
 
+ALIASES = {
+    "THE US": "UNITED STATES", "USA": "UNITED STATES", "AMERICA": "UNITED STATES",
+    "AMERICAN": "UNITED STATES", "WASHINGTON": "UNITED STATES",
+    "BRITAIN": "UNITED KINGDOM", "BRITISH": "UNITED KINGDOM", "LONDON": "UNITED KINGDOM",
+    "SAUDI": "SAUDI ARABIA", "UAE": "UNITED ARAB EMIRATES",
+    "RUSSIAN": "RUSSIA", "MOSCOW": "RUSSIA",
+    "ISRAELI": "ISRAEL", "IRANIAN": "IRAN", "TEHRAN": "IRAN",
+    "CHINESE": "CHINA", "BEIJING": "CHINA", "UKRAINIAN": "UKRAINE", "KYIV": "UKRAINE",
+}
+
+
 def _clean(name: str | None) -> str | None:
     if not name:
         return None
     name = name.strip().upper()
+    name = ALIASES.get(name, name)
     if len(name) < MIN_NAME_LEN or name in GENERIC:
         return None
     return name.title()
 
 
 def run(conn: psycopg.Connection) -> None:
+    wm = conn.execute(
+        "SELECT watermark_ts FROM ingest_watermarks WHERE source = 'entities'"
+    ).fetchone()
     rows = conn.execute(
         """
-        SELECT e.id, e.event_type, e.actor1, e.actor2, e.importance
+        SELECT e.id, e.event_type, e.actor1, e.actor2, e.importance, e.created_at
         FROM events e
-        WHERE NOT EXISTS (SELECT 1 FROM entity_mentions m WHERE m.event_id = e.id)
+        WHERE e.created_at > COALESCE(%s, '1970-01-01'::timestamptz)
           AND (e.actor1 IS NOT NULL OR e.actor2 IS NOT NULL)
-        ORDER BY e.id
+        ORDER BY e.created_at
         LIMIT 5000
-        """
+        """,
+        (wm[0] if wm else None,),
     ).fetchall()
 
     ids: dict[str, int] = {}
@@ -54,7 +70,9 @@ def run(conn: psycopg.Connection) -> None:
         return ids[name]
 
     mentions = relations = 0
-    for event_id, event_type, actor1, actor2, importance in rows:
+    max_created = wm[0] if wm else None
+    for event_id, event_type, actor1, actor2, importance, created_at in rows:
+        max_created = created_at if max_created is None else max(max_created, created_at)
         a1, a2 = _clean(actor1), _clean(actor2)
         for name, role in ((a1, "actor1"), (a2, "actor2")):
             if not name:
@@ -77,5 +95,15 @@ def run(conn: psycopg.Connection) -> None:
                 (ea, eb, VERB_CLASS.get(event_type, "other"), importance),
             )
             relations += 1
+    if max_created is not None:
+        conn.execute(
+            """
+            INSERT INTO ingest_watermarks (source, watermark_ts, updated_at)
+            VALUES ('entities', %s, now())
+            ON CONFLICT (source) DO UPDATE
+                SET watermark_ts = EXCLUDED.watermark_ts, updated_at = now()
+            """,
+            (max_created,),
+        )
     conn.commit()
     print(f"entities: {len(rows)} events processed, {mentions} mentions, {relations} relation updates")
