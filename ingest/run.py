@@ -2,7 +2,7 @@
 
 import os
 
-from ingest import gdelt, usgs
+from ingest import gdelt, rss, usgs
 from ingest.db import connect
 
 
@@ -15,6 +15,8 @@ def main() -> None:
         usgs.run(conn)
         if _enabled("GDELT_ENABLED"):
             gdelt.run(conn)
+        if _enabled("RSS_ENABLED"):
+            rss.run(conn)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,17 @@
+# Curated RSS feeds for the article tier. This list is user config, not code:
+# add or remove outlets freely; the worker syncs it into the sources table.
+# trust_weight feeds importance scoring later (1.0 = wire-service grade).
+
+feeds:
+  - name: BBC World
+    url: http://feeds.bbci.co.uk/news/world/rss.xml
+    country: GB
+    trust_weight: 1.0
+  - name: Al Jazeera
+    url: https://www.aljazeera.com/xml/rss/all.xml
+    country: QA
+    trust_weight: 0.9
+  - name: The Guardian World
+    url: https://www.theguardian.com/world/rss
+    country: GB
+    trust_weight: 0.9

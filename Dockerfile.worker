@@ -4,6 +4,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY ingest/ ingest/
+COPY config/ config/
 COPY extract/ extract/
 COPY sim/ sim/
 COPY db/ db/
