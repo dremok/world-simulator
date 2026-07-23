@@ -87,13 +87,85 @@ def apply() -> None:
     print(f"applied {len(items)} enrichments")
 
 
+NARRATE_PENDING_SQL = """
+    SELECT s.id, s.title, s.summary, s.status, s.cluster_key, s.heat,
+           s.started_at, s.last_activity_at,
+           (SELECT json_agg(json_build_object(
+                'event_type', e.event_type, 'actor1', e.actor1, 'actor2', e.actor2,
+                'summary', e.summary, 'url', e.payload->>'url',
+                'occurred_at', e.occurred_at, 'importance', e.importance)
+                ORDER BY e.importance DESC)
+            FROM (SELECT e.* FROM storyline_events se JOIN events e ON e.id = se.event_id
+                  WHERE se.storyline_id = s.id
+                  ORDER BY e.importance DESC LIMIT 12) e) AS top_events
+    FROM storylines s
+    WHERE (s.narrated_at IS NULL OR s.last_activity_at > s.narrated_at
+           OR (s.status = 'closed' AND s.closed_summary IS NULL))
+      AND s.heat > 0.5
+    ORDER BY s.heat DESC
+    LIMIT %s
+"""
+
+NARRATE_APPLY_SQL = """
+    UPDATE storylines
+    SET title = COALESCE(%(title)s, title),
+        summary = COALESCE(%(summary)s, summary),
+        closed_kind = COALESCE(%(closed_kind)s, closed_kind),
+        closed_summary = COALESCE(%(closed_summary)s, closed_summary),
+        narrated_at = now(),
+        updated_at = now()
+    WHERE id = %(id)s
+"""
+
+
+def narrate_pending(limit: int) -> None:
+    with _connect() as conn:
+        rows = conn.execute(NARRATE_PENDING_SQL, (limit,)).fetchall()
+    out = [
+        {
+            "id": id_, "title": title, "summary": summary, "status": status,
+            "cluster_key": cluster_key, "heat": heat,
+            "started_at": started_at.isoformat(),
+            "last_activity_at": last_activity_at.isoformat(),
+            "top_events": top_events,
+        }
+        for id_, title, summary, status, cluster_key, heat,
+            started_at, last_activity_at, top_events in rows
+    ]
+    json.dump(out, sys.stdout, indent=1, default=str)
+    print(f"\n{len(out)} storylines pending narration", file=sys.stderr)
+
+
+def narrate_apply() -> None:
+    items = json.load(sys.stdin)
+    for item in items:
+        if not isinstance(item.get("id"), int):
+            sys.exit(f"bad item: {item}")
+        if item.get("closed_kind") not in (None, "resolved", "quiet"):
+            sys.exit(f"bad closed_kind on id {item['id']}")
+        item.setdefault("title", None)
+        item.setdefault("summary", None)
+        item.setdefault("closed_kind", None)
+        item.setdefault("closed_summary", None)
+    with _connect() as conn:
+        with conn.cursor() as cur:
+            cur.executemany(NARRATE_APPLY_SQL, items)
+        conn.commit()
+    print(f"applied {len(items)} narrations")
+
+
+COMMANDS = {
+    "pending": lambda: pending(int(sys.argv[2]) if len(sys.argv) > 2 else 50),
+    "apply": apply,
+    "narrate-pending": lambda: narrate_pending(int(sys.argv[2]) if len(sys.argv) > 2 else 20),
+    "narrate-apply": narrate_apply,
+}
+
+
 def main() -> None:
-    if len(sys.argv) < 2 or sys.argv[1] not in ("pending", "apply"):
+    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
         sys.exit(__doc__)
-    if sys.argv[1] == "pending":
-        pending(int(sys.argv[2]) if len(sys.argv) > 2 else 50)
-    else:
-        apply()
+    COMMANDS[sys.argv[1]]()
 
 
 if __name__ == "__main__":

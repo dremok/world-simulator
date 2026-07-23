@@ -63,6 +63,101 @@ def events_geojson(
     return {"type": "FeatureCollection", "features": features}
 
 
+@app.get("/storylines")
+def storylines_list(status: str = Query(default="active"), limit: int = Query(default=30, ge=1, le=200)) -> list:
+    sql = """
+        SELECT s.id, s.title, s.summary, s.status, s.cluster_key, s.heat,
+               s.started_at, s.last_activity_at, s.closed_kind, s.closed_summary,
+               count(se.event_id) AS event_count
+        FROM storylines s
+        LEFT JOIN storyline_events se ON se.storyline_id = s.id
+        WHERE s.status = %s
+        GROUP BY s.id
+        ORDER BY s.heat DESC, s.last_activity_at DESC
+        LIMIT %s
+    """
+    with _connect() as conn:
+        rows = conn.execute(sql, (status, limit)).fetchall()
+    return [
+        {
+            "id": id_,
+            "title": title,
+            "summary": summary,
+            "status": status_,
+            "country_iso": (cluster_key or ":").split(":")[0] or None,
+            "verb_class": (cluster_key or ":").split(":")[1] or None,
+            "heat": round(heat, 2),
+            "started_at": started_at.isoformat(),
+            "last_activity_at": last_activity_at.isoformat(),
+            "closed_kind": closed_kind,
+            "closed_summary": closed_summary,
+            "event_count": event_count,
+        }
+        for id_, title, summary, status_, cluster_key, heat, started_at,
+            last_activity_at, closed_kind, closed_summary, event_count in rows
+    ]
+
+
+@app.get("/storylines/{storyline_id}")
+def storyline_detail(storyline_id: int) -> dict:
+    with _connect() as conn:
+        s = conn.execute(
+            "SELECT id, title, summary, status, cluster_key, heat, started_at, last_activity_at, closed_kind, closed_summary FROM storylines WHERE id = %s",
+            (storyline_id,),
+        ).fetchone()
+        if not s:
+            return {"error": "not found"}
+        events = conn.execute(
+            """
+            SELECT e.id, e.event_type, e.summary, e.severity, e.importance,
+                   e.occurred_at, e.payload->>'url' AS url
+            FROM storyline_events se JOIN events e ON e.id = se.event_id
+            WHERE se.storyline_id = %s
+            ORDER BY e.occurred_at DESC
+            LIMIT 200
+            """,
+            (storyline_id,),
+        ).fetchall()
+    return {
+        "id": s[0], "title": s[1], "summary": s[2], "status": s[3],
+        "cluster_key": s[4], "heat": round(s[5], 2),
+        "started_at": s[6].isoformat(), "last_activity_at": s[7].isoformat(),
+        "closed_kind": s[8], "closed_summary": s[9],
+        "event_ids": [e[0] for e in events],
+        "events": [
+            {
+                "id": id_, "event_type": event_type, "summary": summary,
+                "severity": severity, "importance": importance,
+                "occurred_at": occurred_at.isoformat(), "url": url,
+            }
+            for id_, event_type, summary, severity, importance, occurred_at, url in events
+        ],
+    }
+
+
+@app.get("/diff")
+def world_diff(since: str = Query(...)) -> dict:
+    """What changed: storylines opened or closed since the given ISO timestamp."""
+    with _connect() as conn:
+        opened = conn.execute(
+            "SELECT id, title, cluster_key, heat FROM storylines WHERE started_at > %s ORDER BY heat DESC",
+            (since,),
+        ).fetchall()
+        closed = conn.execute(
+            "SELECT id, title, cluster_key, closed_kind FROM storylines WHERE status = 'closed' AND updated_at > %s",
+            (since,),
+        ).fetchall()
+        new_events = conn.execute(
+            "SELECT count(*) FROM events WHERE created_at > %s", (since,)
+        ).fetchone()[0]
+    return {
+        "since": since,
+        "new_events": new_events,
+        "opened": [{"id": i, "title": t, "cluster_key": k, "heat": round(h, 2)} for i, t, k, h in opened],
+        "closed": [{"id": i, "title": t, "cluster_key": k, "closed_kind": ck} for i, t, k, ck in closed],
+    }
+
+
 @app.get("/layers/country_stats.json")
 def country_stats(hours: int = Query(default=24, ge=1, le=24 * 90)) -> dict:
     sql = """

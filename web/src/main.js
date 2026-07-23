@@ -133,4 +133,41 @@ map.on('load', async () => {
   map.on('mouseleave', 'events', () => { map.getCanvas().style.cursor = ''; });
 
   status.textContent = `${events.features.length} events, past 48h`;
+
+  // Storyline panel: click a narrative to isolate its events on the map
+  const CLASS_COLOR = { conflict: '#d64541', cooperation: '#3e8e8c', protest: '#e07b39', disaster: '#e8b04b' };
+  const list = document.getElementById('storyline-list');
+  const clearBtn = document.getElementById('storyline-clear');
+  let selectedLi = null;
+
+  function clearSelection() {
+    map.setFilter('events', null);
+    map.setPaintProperty('country-fill', 'fill-opacity', 1);
+    selectedLi?.classList.remove('selected');
+    selectedLi = null;
+    clearBtn.hidden = true;
+  }
+
+  const storylines = await (await fetch('/storylines?status=active&limit=25')).json();
+  for (const s of storylines) {
+    if (s.heat <= 0) continue;
+    const li = document.createElement('li');
+    const color = CLASS_COLOR[s.verb_class] ?? '#6a7683';
+    li.innerHTML =
+      `<i class="dot" style="background:${color}"></i>${s.title}` +
+      `<div class="storyline-meta">${s.event_count} events &middot; heat ${s.heat}${s.summary ? '' : ' &middot; unnarrated'}</div>` +
+      (s.summary ? `<div class="storyline-meta">${s.summary}</div>` : '');
+    li.addEventListener('click', async () => {
+      if (selectedLi === li) { clearSelection(); return; }
+      const detail = await (await fetch(`/storylines/${s.id}`)).json();
+      map.setFilter('events', ['in', ['get', 'id'], ['literal', detail.event_ids]]);
+      map.setPaintProperty('country-fill', 'fill-opacity', 0.25);
+      selectedLi?.classList.remove('selected');
+      li.classList.add('selected');
+      selectedLi = li;
+      clearBtn.hidden = false;
+    });
+    list.appendChild(li);
+  }
+  clearBtn.addEventListener('click', clearSelection);
 });

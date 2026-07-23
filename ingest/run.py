@@ -2,6 +2,7 @@
 
 import os
 
+from extract import storylines
 from ingest import gdelt, rss, usgs
 from ingest.db import connect
 
@@ -17,6 +18,7 @@ def main() -> None:
             gdelt.run(conn)
         if _enabled("RSS_ENABLED"):
             rss.run(conn)
+        storylines.run(conn)
 
 
 if __name__ == "__main__":

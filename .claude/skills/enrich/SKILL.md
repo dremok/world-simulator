@@ -36,6 +36,24 @@ in `extract/enrich.py`.
 4. Verify: re-run `pending` and confirm the applied ids are gone, then
    spot-check one summary on the live map popup.
 
+## Narrating storylines (same session, second pass)
+
+5. Get storylines needing narration (new activity since last narration):
+
+       .venv/bin/python -m extract.enrich narrate-pending 20 > /tmp/narr.json
+
+   Each has cluster_key (country:verb_class), heat, and its top 12 events.
+
+6. For each storyline write a specific `title` (5-8 words naming actors
+   and what is actually happening, not "conflict · US") and a 2-3 sentence
+   neutral `summary` of the arc so far. For storylines with
+   status=closed: write `closed_summary` (what happened, how it ended)
+   and set `closed_kind` to "resolved" ONLY if the events show an actual
+   terminal event (ceasefire signed, verdict, election concluded);
+   otherwise leave it "quiet". Never upgrade quiet to resolved on a guess.
+
+7. Apply: `... | .venv/bin/python -m extract.enrich narrate-apply`
+
 ## Rules
 
 - Summaries must come from the fetched article, never from the CAMEO code
