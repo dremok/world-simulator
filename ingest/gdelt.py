@@ -37,6 +37,7 @@ CAMEO_ROOT_NAMES = {
 
 # Column indices in the 61-column export file (0-based)
 COL_ID, COL_A1, COL_A2 = 0, 6, 16
+COL_A1_CC, COL_A2_CC = 7, 17
 COL_ROOTCODE, COL_CAMEO, COL_GOLDSTEIN = 28, 27, 30
 COL_NUM_ARTICLES, COL_TONE = 33, 34
 COL_GEO_CC, COL_GEO_ADM1, COL_GEO_LAT, COL_GEO_LON = 53, 54, 56, 57
@@ -44,14 +45,16 @@ COL_DATEADDED, COL_URL = 59, 60
 
 UPSERT_SQL = """
 INSERT INTO events (external_id, event_type, cameo_code, actor1, actor2,
-                    lat, lon, country_iso, admin1, tone, goldstein,
-                    importance, occurred_at, payload)
+                    actor1_cc, actor2_cc, lat, lon, country_iso, admin1,
+                    tone, goldstein, importance, occurred_at, payload)
 VALUES (%(external_id)s, %(event_type)s, %(cameo_code)s, %(actor1)s, %(actor2)s,
-        %(lat)s, %(lon)s, %(country_iso)s, %(admin1)s, %(tone)s, %(goldstein)s,
-        %(importance)s, %(occurred_at)s, %(payload)s)
+        %(actor1_cc)s, %(actor2_cc)s, %(lat)s, %(lon)s, %(country_iso)s, %(admin1)s,
+        %(tone)s, %(goldstein)s, %(importance)s, %(occurred_at)s, %(payload)s)
 ON CONFLICT (external_id) DO UPDATE SET
     importance = EXCLUDED.importance,
     tone = EXCLUDED.tone,
+    actor1_cc = EXCLUDED.actor1_cc,
+    actor2_cc = EXCLUDED.actor2_cc,
     payload = EXCLUDED.payload
 """
 
@@ -106,6 +109,8 @@ def _parse_file(content: bytes, min_importance: float) -> list[dict]:
                 "cameo_code": cols[COL_CAMEO] or None,
                 "actor1": cols[COL_A1] or None,
                 "actor2": cols[COL_A2] or None,
+                "actor1_cc": cols[COL_A1_CC] or None,
+                "actor2_cc": cols[COL_A2_CC] or None,
                 "lat": lat,
                 "lon": lon,
                 "country_iso": fips_to_iso(cols[COL_GEO_CC]),

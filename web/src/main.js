@@ -98,6 +98,7 @@ map.on('load', async () => {
   }
 
   map.on('click', 'events', (e) => {
+    if (window.__relArmed) return;
     const p = e.features[0].properties;
     const when = new Date(p.occurred_at).toUTCString().replace(':00 GMT', ' UTC');
     let body;
@@ -117,6 +118,7 @@ map.on('load', async () => {
   });
 
   map.on('click', 'country-fill', (e) => {
+    if (window.__relArmed) return;
     if (map.queryRenderedFeatures(e.point, { layers: ['events'] }).length) return;
     const p = e.features[0].properties;
     const s = p.iso && stats[p.iso];
@@ -168,4 +170,118 @@ map.on('load', async () => {
     list.appendChild(li);
   }
   clearBtn.addEventListener('click', clearSelection);
+
+  // ---- Relation mode: click two countries, map becomes their relationship ----
+  const relToggle = document.getElementById('relation-toggle');
+  const relCard = document.getElementById('relation-card');
+  const CLASS_COLORS = { conflict: '#d64541', cooperation: '#3e8e8c', protest: '#e07b39', other: '#6a7683' };
+  let relArmed = false;
+  let relPick = [];
+  Object.defineProperty(window, '__relArmed', { get: () => relArmed, configurable: true });
+
+  const centroids = {};
+  for (const f of countries.features) {
+    if (!f.properties.iso3) continue;
+    let minX = 180, minY = 90, maxX = -180, maxY = -90;
+    const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+    for (const poly of polys) for (const [x, y] of poly[0]) {
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    centroids[f.properties.iso3] = [(minX + maxX) / 2, (minY + maxY) / 2];
+  }
+
+  function arcLine(from, to, bend) {
+    const mx = (from[0] + to[0]) / 2, my = (from[1] + to[1]) / 2;
+    const dx = to[0] - from[0], dy = to[1] - from[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const cx = mx - (dy / len) * bend, cy = my + (dx / len) * bend;
+    const pts = [];
+    for (let t = 0; t <= 1.001; t += 0.05) {
+      pts.push([
+        (1 - t) ** 2 * from[0] + 2 * (1 - t) * t * cx + t ** 2 * to[0],
+        (1 - t) ** 2 * from[1] + 2 * (1 - t) * t * cy + t ** 2 * to[1],
+      ]);
+    }
+    return pts;
+  }
+
+  function exitRelation() {
+    relArmed = false;
+    relPick = [];
+    relToggle.classList.remove('armed');
+    relCard.hidden = true;
+    for (const id of ['relation-arcs', 'relation-events']) {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    }
+    map.setPaintProperty('events', 'circle-opacity', 0.8);
+    map.setPaintProperty('country-fill', 'fill-opacity', 1);
+  }
+
+  relToggle.addEventListener('click', () => {
+    if (relArmed || !relCard.hidden) { exitRelation(); return; }
+    relArmed = true;
+    relToggle.classList.add('armed');
+    relCard.hidden = false;
+    relCard.innerHTML = '<span class="rel-title">relation mode</span><br>click two countries';
+  });
+
+  async function showRelation(a, b) {
+    const rel = await (await fetch(`/relation?a=${a}&b=${b}&hours=168`)).json();
+    map.setPaintProperty('events', 'circle-opacity', 0.06);
+    map.setPaintProperty('country-fill', 'fill-opacity', 0.15);
+
+    const arcFeatures = Object.entries(rel.verb_mix).map(([cls, n], i) => ({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: arcLine(centroids[a], centroids[b], 6 + i * 5) },
+      properties: { verb_class: cls, count: n },
+    }));
+    map.addSource('relation-arcs', { type: 'geojson', data: { type: 'FeatureCollection', features: arcFeatures } });
+    map.addLayer({
+      id: 'relation-arcs', type: 'line', source: 'relation-arcs',
+      paint: {
+        'line-color': ['match', ['get', 'verb_class'],
+          'conflict', CLASS_COLORS.conflict, 'cooperation', CLASS_COLORS.cooperation,
+          'protest', CLASS_COLORS.protest, CLASS_COLORS.other],
+        'line-width': ['interpolate', ['linear'], ['get', 'count'], 1, 1.5, 30, 7],
+        'line-opacity': 0.85,
+      },
+    });
+    map.addSource('relation-events', { type: 'geojson', data: rel.events });
+    map.addLayer({
+      id: 'relation-events', type: 'circle', source: 'relation-events',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['get', 'importance'], 0.25, 3, 1.0, 11],
+        'circle-color': ['match', ['get', 'verb_class'],
+          'conflict', CLASS_COLORS.conflict, 'cooperation', CLASS_COLORS.cooperation,
+          'protest', CLASS_COLORS.protest, CLASS_COLORS.other],
+        'circle-stroke-width': 1,
+        'circle-stroke-color': 'rgba(255,255,255,0.4)',
+      },
+    });
+    const mix = Object.entries(rel.verb_mix)
+      .map(([k, v]) => `<span style="color:${CLASS_COLORS[k]}">${k} ${v}</span>`).join(' · ');
+    relCard.innerHTML =
+      `<span class="rel-title">${a} &harr; ${b}</span><br>` +
+      `${rel.count} events, 7 days<br>${mix}<br>` +
+      `avg goldstein ${rel.avg_goldstein ?? 'n/a'} <span style="color:#5a646e">(&minus;10 hostile &rarr; +10 cooperative)</span>` +
+      `<div class="rel-clear">&times; exit relation mode</div>`;
+    relCard.querySelector('.rel-clear').addEventListener('click', exitRelation);
+  }
+
+  map.on('click', 'country-fill', (e) => {
+    if (!relArmed) return;
+    const iso3 = e.features[0].properties.iso3;
+    if (!iso3 || relPick.includes(iso3)) return;
+    relPick.push(iso3);
+    relCard.innerHTML = `<span class="rel-title">relation mode</span><br>${relPick.join(' &harr; ')}${relPick.length < 2 ? '<br>click a second country' : ''}`;
+    if (relPick.length === 2) {
+      relArmed = false;
+      relToggle.classList.remove('armed');
+      showRelation(relPick[0], relPick[1]);
+    }
+  });
+
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') exitRelation(); });
 });

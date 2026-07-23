@@ -83,6 +83,60 @@ body,
   color: #5a646e;
 }
 
+#hud-right {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  pointer-events: auto;
+}
+
+#relation-toggle {
+  background: none;
+  border: 1px solid #2a323c;
+  border-radius: 3px;
+  color: #8a949e;
+  font: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+#relation-toggle.armed {
+  border-color: #3e8e8c;
+  color: #c4ccd4;
+}
+
+#relation-card {
+  position: fixed;
+  top: 44px;
+  left: 12px;
+  width: 260px;
+  padding: 10px 12px;
+  background: rgba(11, 14, 18, 0.9);
+  border: 1px solid #2a323c;
+  border-radius: 4px;
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: #8a949e;
+  line-height: 1.6;
+}
+
+#relation-card .rel-title {
+  color: #c4ccd4;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#relation-card .rel-clear {
+  margin-top: 6px;
+  color: #c4ccd4;
+  cursor: pointer;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
 #storylines {
   position: fixed;
   top: 44px;

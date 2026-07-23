@@ -135,6 +135,64 @@ def storyline_detail(storyline_id: int) -> dict:
     }
 
 
+VERB_CLASS_SQL = """
+    CASE
+      WHEN event_type IN ('fight','assault','coerce','threaten','force_posture','mass_violence','reduce_relations') THEN 'conflict'
+      WHEN event_type IN ('diplomatic_cooperation','material_cooperation','provide_aid','intent_to_cooperate','yield','consult','appeal') THEN 'cooperation'
+      WHEN event_type = 'protest' THEN 'protest'
+      ELSE 'other'
+    END
+"""
+
+
+@app.get("/relation")
+def relation(
+    a: str = Query(..., min_length=3, max_length=3),
+    b: str = Query(..., min_length=3, max_length=3),
+    hours: int = Query(default=168, ge=1, le=24 * 90),
+) -> dict:
+    """Everything between two CAMEO country codes (alpha-3), both directions."""
+    a, b = a.upper(), b.upper()
+    with _connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, event_type, {VERB_CLASS_SQL} AS verb_class, actor1, actor2,
+                   actor1_cc, actor2_cc, lat, lon, goldstein, tone, importance,
+                   occurred_at, summary, payload->>'url' AS url
+            FROM events
+            WHERE occurred_at > now() - make_interval(hours => %s)
+              AND ((actor1_cc = %s AND actor2_cc = %s) OR (actor1_cc = %s AND actor2_cc = %s))
+            ORDER BY importance DESC
+            LIMIT 500
+            """,
+            (hours, a, b, b, a),
+        ).fetchall()
+    verb_mix: dict[str, int] = {}
+    goldsteins = []
+    features = []
+    for (id_, event_type, verb_class, actor1, actor2, a1cc, a2cc, lat, lon,
+         goldstein, tone, importance, occurred_at, summary, url) in rows:
+        verb_mix[verb_class] = verb_mix.get(verb_class, 0) + 1
+        if goldstein is not None:
+            goldsteins.append(goldstein)
+        if lat is not None and lon is not None:
+            features.append({
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                "properties": {
+                    "id": id_, "event_type": event_type, "verb_class": verb_class,
+                    "actor1": actor1, "actor2": actor2, "importance": importance,
+                    "occurred_at": occurred_at.isoformat(), "summary": summary, "url": url,
+                },
+            })
+    return {
+        "a": a, "b": b, "hours": hours, "count": len(rows),
+        "verb_mix": verb_mix,
+        "avg_goldstein": round(sum(goldsteins) / len(goldsteins), 2) if goldsteins else None,
+        "events": {"type": "FeatureCollection", "features": features},
+    }
+
+
 @app.get("/diff")
 def world_diff(since: str = Query(...)) -> dict:
     """What changed: storylines opened or closed since the given ISO timestamp."""
