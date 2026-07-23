@@ -103,6 +103,7 @@ body,
   cursor: pointer;
 }
 
+#actors-toggle,
 #diff-toggle,
 #relation-toggle {
   background: none;

@@ -363,6 +363,24 @@ map.on('load', async () => {
 
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') exitRelation(); });
 
+  // ---- Actors: most active entities and their strongest relations ----
+  document.getElementById('actors-toggle').addEventListener('click', async () => {
+    if (!relCard.hidden) { relCard.hidden = true; return; }
+    const ents = await (await fetch('/entities/top?hours=72&limit=12')).json();
+    const rows = ents.map((en) => {
+      const rels = en.top_relations.slice(0, 3)
+        .map((r) => `<span style="color:${CLASS_COLORS[r.relation] ?? '#6a7683'}">${r.other}</span>`)
+        .join(' &middot; ');
+      return `<div class="event-card">${en.name} <span class="storyline-meta">${en.mentions} mentions</span>` +
+        (rels ? `<div class="storyline-meta">${rels}</div>` : '') + `</div>`;
+    }).join('');
+    relCard.innerHTML =
+      `<span class="rel-title">most active actors &middot; 72h</span>${rows}` +
+      `<div class="rel-clear">&times; close</div>`;
+    relCard.hidden = false;
+    relCard.querySelector('.rel-clear').addEventListener('click', () => { relCard.hidden = true; });
+  });
+
   // ---- 24h diff: what opened and closed since yesterday ----
   const diffToggle = document.getElementById('diff-toggle');
   diffToggle.addEventListener('click', async () => {
