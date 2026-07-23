@@ -200,6 +200,33 @@ body,
   font-size: 10px;
 }
 
+#timebar {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 14px;
+  background: rgba(11, 14, 18, 0.85);
+  border: 1px solid #2a323c;
+  border-radius: 4px;
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: #8a949e;
+}
+
+#timeslider {
+  width: 260px;
+  accent-color: #3e8e8c;
+}
+
+#timelabel {
+  min-width: 110px;
+  color: #c4ccd4;
+}
+
 .spark {
   float: right;
   margin-top: 2px;

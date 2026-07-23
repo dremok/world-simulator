@@ -185,6 +185,23 @@ def state_layer() -> dict:
     }
 
 
+@app.get("/layers/state_at.json")
+def state_at(ts: str = Query(...)) -> dict:
+    """Nearest snapshot at or before ts, per country. Powers the replay slider."""
+    sql = """
+        SELECT DISTINCT ON (country_iso) country_iso, tension, econ_mood, attention, ts
+        FROM country_state
+        WHERE ts <= %s
+        ORDER BY country_iso, ts DESC
+    """
+    with _connect() as conn:
+        rows = conn.execute(sql, (ts,)).fetchall()
+    return {
+        iso: {"tension": round(t, 3), "econ_mood": round(e, 3), "attention": round(a, 3), "ts": snap_ts.isoformat()}
+        for iso, t, e, a, snap_ts in rows
+    }
+
+
 VERB_CLASS_SQL = """
     CASE
       WHEN event_type IN ('fight','assault','coerce','threaten','force_posture','mass_violence','reduce_relations') THEN 'conflict'

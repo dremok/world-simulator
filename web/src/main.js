@@ -363,6 +363,43 @@ map.on('load', async () => {
 
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') exitRelation(); });
 
+  // ---- Time slider: replay the last 24h of state (15-min steps) ----
+  const slider = document.getElementById('timeslider');
+  const timelabel = document.getElementById('timelabel');
+  const lensSelect = document.getElementById('lens');
+  let sliderTimer = null;
+
+  function tensionFillFrom(stateMap) {
+    const maxT = Math.max(0.01, ...Object.values(stateMap).map((s) => s.tension));
+    const expr = ['case'];
+    for (const f of countries.features) {
+      const iso = f.properties.iso;
+      const s = iso && stateMap[iso];
+      if (s && s.tension > 0) {
+        expr.push(['==', ['get', 'iso'], iso],
+          `rgba(214, 69, 65, ${Math.min(0.65, 0.05 + 0.6 * (s.tension / maxT))})`);
+      }
+    }
+    expr.push('rgba(0,0,0,0)');
+    return expr.length > 2 ? expr : 'rgba(0,0,0,0)';
+  }
+
+  slider.addEventListener('input', () => {
+    const step = Number(slider.value);
+    clearTimeout(sliderTimer);
+    if (step === 96) {
+      timelabel.textContent = 'live';
+      map.setPaintProperty('country-fill', 'fill-color', lensFill(lensSelect.value));
+      return;
+    }
+    const ts = new Date(Date.now() - (96 - step) * 15 * 60 * 1000);
+    timelabel.textContent = ts.toUTCString().slice(5, 22) + ' UTC';
+    sliderTimer = setTimeout(async () => {
+      const past = await (await fetch(`/layers/state_at.json?ts=${encodeURIComponent(ts.toISOString())}`)).json();
+      map.setPaintProperty('country-fill', 'fill-color', tensionFillFrom(past));
+    }, 200);
+  });
+
   // ---- Actors: most active entities and their strongest relations ----
   document.getElementById('actors-toggle').addEventListener('click', async () => {
     if (!relCard.hidden) { relCard.hidden = true; return; }
