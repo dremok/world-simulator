@@ -6,8 +6,8 @@ Read `PLAN.md` first. It contains the architecture, schema, data sources, phased
 
 Update this section as work progresses.
 
-- **Current phase:** 1 in progress. Live at https://api-production-8a0f.up.railway.app. Done: GDELT 15-min sync (importance-scored, FIPS→ISO mapped), country_stats endpoint, tone/volume choropleth, worker service on Railway cron (`*/15 * * * *`, set via GraphQL API since per-service config files are dashboard-only).
-- **Next action:** Verify worker cron produces rows on Railway, then Phase 2 step 1: enrichment module (`extract/enrich.py`, driven by Claude Code skill per the zero-API-cost decision).
+- **Current phase:** 2 in progress. Live at https://api-production-8a0f.up.railway.app. Done: full Phase 1 (GDELT cron-verified in prod, RSS poller, choropleth, legend); enrichment plumbing + /enrich skill (zero API cost, session is the LLM); heuristic storyline clustering (country×verb-class keys, active/stale/closed lifecycle, quiet-vs-resolved closure), storyline panel with click-to-isolate, /storylines + /diff endpoints, first narration pass applied.
+- **Next action:** Phase 2 continued: entity tables ingestion + relation mode (/api/relation, actor-pair arcs — run the GDELT actor-recall probe first, see ideation notes), event cards, daily world-diff surface. Storyline clustering v2 (actor-aware keys) once entities land.
 - **Decision (2026-07-23):** LLM enrichment will run on demand via a Claude Code skill instead of API calls from the worker, to keep API spend at zero. Build `extract/enrich.py` as an idempotent module behind a driver boundary; `ENRICH_ENABLED=false` default in the deployed worker.
 
 ## Architecture in one breath
