@@ -36,7 +36,7 @@ def _attach_new_events(conn: psycopg.Connection) -> int:
     """Attach unassigned qualifying events to storylines, creating as needed."""
     rows = conn.execute(
         """
-        SELECT e.id, e.event_type, e.country_iso, e.occurred_at
+        SELECT e.id, e.event_type, e.country_iso, e.occurred_at, e.actor1_cc, e.actor2_cc
         FROM events e
         LEFT JOIN storyline_events se ON se.event_id = e.id
         WHERE se.event_id IS NULL
@@ -48,11 +48,17 @@ def _attach_new_events(conn: psycopg.Connection) -> int:
     ).fetchall()
 
     attached = 0
-    for event_id, event_type, country_iso, occurred_at in rows:
+    for event_id, event_type, country_iso, occurred_at, actor1_cc, actor2_cc in rows:
         verb_class = VERB_CLASS.get(event_type)
         if verb_class is None:
             continue
-        key = f"{country_iso}:{verb_class}"
+        # Actor-pair key when both sides resolve to different countries:
+        # 'IRN-USA:conflict' is one narrative, not noise inside two country bags.
+        if actor1_cc and actor2_cc and actor1_cc != actor2_cc:
+            a, b = sorted((actor1_cc, actor2_cc))
+            key = f"{a}-{b}:{verb_class}"
+        else:
+            key = f"{country_iso}:{verb_class}"
         storyline = conn.execute(
             """
             SELECT id FROM storylines
@@ -78,7 +84,7 @@ def _attach_new_events(conn: psycopg.Connection) -> int:
                 VALUES (%s, %s, 'active', %s, %s)
                 RETURNING id
                 """,
-                (f"{verb_class} · {country_iso}", key, occurred_at, occurred_at),
+                (f"{verb_class} · {key.split(':')[0]}", key, occurred_at, occurred_at),
             ).fetchone()[0]
         conn.execute(
             "INSERT INTO storyline_events (storyline_id, event_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
