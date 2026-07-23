@@ -80,8 +80,31 @@ map.on('load', async () => {
   }
   const fillColor = lensFill('tone');
 
+  const LENS_LEGENDS = {
+    tone: `<div class="legend-heading">countries &middot; 24h news tone</div>
+      <div><i class="swatch" style="background:rgba(214,69,65,.45)"></i> negative</div>
+      <div><i class="swatch" style="background:rgba(138,148,158,.35)"></i> neutral</div>
+      <div><i class="swatch" style="background:rgba(62,142,140,.45)"></i> positive</div>
+      <div class="legend-note">stronger tint = more coverage</div>`,
+    tension: `<div class="legend-heading">countries &middot; tension</div>
+      <div><i class="swatch" style="background:rgba(214,69,65,.55)"></i> high</div>
+      <div><i class="swatch" style="background:rgba(214,69,65,.15)"></i> low</div>
+      <div class="legend-note">decaying sum of conflict-weighted events</div>`,
+    attention: `<div class="legend-heading">countries &middot; attention</div>
+      <div><i class="swatch" style="background:rgba(201,161,75,.55)"></i> high coverage</div>
+      <div><i class="swatch" style="background:rgba(201,161,75,.15)"></i> low</div>
+      <div class="legend-note">decaying sum of event importance</div>`,
+    anomaly: `<div class="legend-heading">countries &middot; anomaly</div>
+      <div><i class="swatch" style="background:rgba(214,69,65,.5)"></i> tenser than its baseline</div>
+      <div><i class="swatch" style="background:rgba(62,142,140,.5)"></i> calmer than usual</div>
+      <div class="legend-note">unpainted = within 1&sigma; of normal</div>`,
+  };
+  const legendCountries = document.getElementById('legend-countries');
+  legendCountries.innerHTML = LENS_LEGENDS.tone;
+
   document.getElementById('lens').addEventListener('change', (e) => {
     map.setPaintProperty('country-fill', 'fill-color', lensFill(e.target.value));
+    legendCountries.innerHTML = LENS_LEGENDS[e.target.value];
   });
 
   map.addSource('countries', { type: 'geojson', data: countries });
