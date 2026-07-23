@@ -23,7 +23,6 @@ PENDING_SQL = """
     FROM events
     WHERE enriched_at IS NULL
       AND importance >= %s
-      AND event_type != 'earthquake'  -- quakes are self-describing (magnitude, place)
     ORDER BY importance DESC
     LIMIT %s
 """

@@ -6,7 +6,6 @@ const COOPERATION = ['diplomatic_cooperation', 'material_cooperation', 'provide_
 
 const TYPE_COLOR = [
   'case',
-  ['==', ['get', 'event_type'], 'earthquake'], '#e8b04b',
   ['in', ['get', 'event_type'], ['literal', CONFLICT]], '#d64541',
   ['in', ['get', 'event_type'], ['literal', COOPERATION]], '#3e8e8c',
   ['==', ['get', 'event_type'], 'protest'], '#e07b39',
@@ -101,9 +100,7 @@ map.on('load', async () => {
     const p = e.features[0].properties;
     const when = new Date(p.occurred_at).toUTCString().replace(':00 GMT', ' UTC');
     let body;
-    if (p.event_type === 'earthquake') {
-      body = `<span class="popup-mag">M ${p.magnitude}</span> ${p.place ?? ''}`;
-    } else if (p.summary) {
+    if (p.summary) {
       body = `${p.summary}<br><span class="popup-code">severity ${p.severity ?? '?'} &middot; coded ${p.event_type.replace(/_/g, ' ')}</span>`;
     } else {
       const headline = slugHeadline(p.url);
@@ -135,7 +132,7 @@ map.on('load', async () => {
   status.textContent = `${events.features.length} events, past 48h`;
 
   // Storyline panel: click a narrative to isolate its events on the map
-  const CLASS_COLOR = { conflict: '#d64541', cooperation: '#3e8e8c', protest: '#e07b39', disaster: '#e8b04b' };
+  const CLASS_COLOR = { conflict: '#d64541', cooperation: '#3e8e8c', protest: '#e07b39' };
   const list = document.getElementById('storyline-list');
   const clearBtn = document.getElementById('storyline-clear');
   let selectedLi = null;

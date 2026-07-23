@@ -24,7 +24,6 @@ VERB_CLASS = {
     "diplomatic_cooperation": "cooperation", "material_cooperation": "cooperation",
     "provide_aid": "cooperation", "intent_to_cooperate": "cooperation",
     "yield": "cooperation", "consult": "cooperation", "appeal": "cooperation",
-    "earthquake": "disaster",
 }
 
 MIN_STORYLINE_IMPORTANCE = 0.35   # events below this stay on the map but off storylines

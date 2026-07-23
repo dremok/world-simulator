@@ -12,7 +12,7 @@ Update this section as work progresses.
 
 ## Architecture in one breath
 
-Feeds (GDELT, RSS, USGS, GDACS) → `ingest/` worker (Railway cron, 15 min) → `extract/` (spaCy + gated Haiku enrichment) → Postgres → `sim/` (per-country state vectors) → `api/` (FastAPI, GeoJSON + SSE) → `web/` (MapLibre map). Planned dirs not yet created: `ingest/`, `extract/`, `sim/`, `api/`, `web/`, `db/migrations/`, `scripts/`. Put new code in the matching stage; details in PLAN.md sections 1-6.
+Feeds (GDELT, RSS) → `ingest/` worker (Railway cron, 15 min) → `extract/` (spaCy + gated Haiku enrichment) → Postgres → `sim/` (per-country state vectors) → `api/` (FastAPI, GeoJSON + SSE) → `web/` (MapLibre map). Planned dirs not yet created: `ingest/`, `extract/`, `sim/`, `api/`, `web/`, `db/migrations/`, `scripts/`. Put new code in the matching stage; details in PLAN.md sections 1-6.
 
 ## Commands
 

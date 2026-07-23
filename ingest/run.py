@@ -3,7 +3,7 @@
 import os
 
 from extract import storylines
-from ingest import gdelt, rss, usgs
+from ingest import gdelt, rss
 from ingest.db import connect
 
 
@@ -13,7 +13,6 @@ def _enabled(var: str) -> bool:
 
 def main() -> None:
     with connect() as conn:
-        usgs.run(conn)
         if _enabled("GDELT_ENABLED"):
             gdelt.run(conn)
         if _enabled("RSS_ENABLED"):
