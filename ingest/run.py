@@ -5,6 +5,7 @@ import os
 from extract import storylines
 from ingest import gdelt, rss
 from ingest.db import connect
+from sim import state
 
 
 def _enabled(var: str) -> bool:
@@ -18,6 +19,7 @@ def main() -> None:
         if _enabled("RSS_ENABLED"):
             rss.run(conn)
         storylines.run(conn)
+        state.run(conn)
 
 
 if __name__ == "__main__":

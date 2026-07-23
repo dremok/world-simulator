@@ -6,8 +6,8 @@ Read `PLAN.md` first. It contains the architecture, schema, data sources, phased
 
 Update this section as work progresses.
 
-- **Current phase:** 2 in progress. Live at https://api-production-8a0f.up.railway.app. Done: full Phase 1 (GDELT cron-verified in prod, RSS poller, choropleth, legend); enrichment plumbing + /enrich skill (zero API cost, session is the LLM); heuristic storyline clustering (country×verb-class keys, active/stale/closed lifecycle, quiet-vs-resolved closure), storyline panel with click-to-isolate, /storylines + /diff endpoints, first narration pass applied.
-- **Next action:** Phase 2 continued: entity tables ingestion + relation mode (/api/relation, actor-pair arcs — run the GDELT actor-recall probe first, see ideation notes), event cards, daily world-diff surface. Storyline clustering v2 (actor-aware keys) once entities land.
+- **Current phase:** 3 in progress. Live at https://api-production-8a0f.up.railway.app. Done through here: Phases 0-2 complete (GDELT+RSS cron ingest, storyline clustering with lifecycle, /enrich skill for zero-API-cost narration, earthquakes removed by request); relation mode (two-click actor-pair arcs via actor1_cc/actor2_cc + /relation); sim tier v1 (sim/state.py: tension/econ_mood/attention with exponential decay, append-only country_state snapshots, /layers/state.json with self-learned anomaly) and a 4-lens choropleth switcher (tone/tension/attention/anomaly). Browser test suite in scratchpad uitest.mjs runs 16 checks against local and prod; all green as of last deploy.
+- **Next action:** Anomaly lens needs ~12 snapshots (3h of cron) before it lights up — verify it after that. Then: storyline sparklines + event cards, daily world-diff surface (GET /diff exists, needs UI), entity tables, time slider over country_state. Storyline clustering v2 (actor-aware keys).
 - **Decision (2026-07-23):** LLM enrichment will run on demand via a Claude Code skill instead of API calls from the worker, to keep API spend at zero. Build `extract/enrich.py` as an idempotent module behind a driver boundary; `ENRICH_ENABLED=false` default in the deployed worker.
 
 ## Architecture in one breath

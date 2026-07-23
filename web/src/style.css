@@ -90,6 +90,19 @@ body,
   pointer-events: auto;
 }
 
+#lens {
+  background: #0b0e12;
+  border: 1px solid #2a323c;
+  border-radius: 3px;
+  color: #8a949e;
+  font: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 4px;
+  cursor: pointer;
+}
+
 #relation-toggle {
   background: none;
   border: 1px solid #2a323c;

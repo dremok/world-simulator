@@ -135,6 +135,40 @@ def storyline_detail(storyline_id: int) -> dict:
     }
 
 
+@app.get("/layers/state.json")
+def state_layer() -> dict:
+    """Latest state per country plus per-country anomaly vs its own history."""
+    sql = """
+        WITH latest AS (
+            SELECT DISTINCT ON (country_iso) country_iso, ts, tension, econ_mood, attention
+            FROM country_state ORDER BY country_iso, ts DESC
+        ),
+        hist AS (
+            SELECT country_iso,
+                   avg(tension) AS t_mean, stddev_samp(tension) AS t_std,
+                   count(*) AS n
+            FROM country_state
+            WHERE ts > now() - interval '90 days'
+            GROUP BY country_iso
+        )
+        SELECT l.country_iso, l.tension, l.econ_mood, l.attention,
+               CASE WHEN h.n >= 12 AND h.t_std > 0.01
+                    THEN (l.tension - h.t_mean) / h.t_std END AS tension_anomaly
+        FROM latest l JOIN hist h USING (country_iso)
+    """
+    with _connect() as conn:
+        rows = conn.execute(sql).fetchall()
+    return {
+        iso: {
+            "tension": round(tension, 3),
+            "econ_mood": round(econ_mood, 3),
+            "attention": round(attention, 3),
+            "tension_anomaly": round(anom, 2) if anom is not None else None,
+        }
+        for iso, tension, econ_mood, attention, anom in rows
+    }
+
+
 VERB_CLASS_SQL = """
     CASE
       WHEN event_type IN ('fight','assault','coerce','threaten','force_posture','mass_violence','reduce_relations') THEN 'conflict'

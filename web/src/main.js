@@ -33,24 +33,56 @@ function toneColor(stats) {
 }
 
 map.on('load', async () => {
-  const [eventsResp, statsResp, countriesResp] = await Promise.all([
+  const [eventsResp, statsResp, countriesResp, stateResp] = await Promise.all([
     fetch('/layers/events.geojson?hours=48&min_importance=0.35'),
     fetch('/layers/country_stats.json?hours=24'),
     fetch('/countries.geojson'),
+    fetch('/layers/state.json'),
   ]);
   const events = await eventsResp.json();
   const stats = await statsResp.json();
   const countries = await countriesResp.json();
+  const state = await stateResp.json();
 
-  // Choropleth: color countries by 24h news volume and tone
-  const fillColor = ['case'];
-  for (const f of countries.features) {
-    const s = f.properties.iso && stats[f.properties.iso];
-    if (s) {
-      fillColor.push(['==', ['get', 'iso'], f.properties.iso], toneColor(s));
+  // Choropleth lenses. Each returns a color for a country or null.
+  const maxTension = Math.max(0.01, ...Object.values(state).map((s) => s.tension));
+  const maxAttention = Math.max(0.01, ...Object.values(state).map((s) => s.attention));
+  const LENSES = {
+    tone: (iso) => (stats[iso] ? toneColor(stats[iso]) : null),
+    tension: (iso) => {
+      const s = state[iso];
+      if (!s || s.tension <= 0) return null;
+      return `rgba(214, 69, 65, ${Math.min(0.65, 0.05 + 0.6 * (s.tension / maxTension))})`;
+    },
+    attention: (iso) => {
+      const s = state[iso];
+      if (!s || s.attention <= 0) return null;
+      return `rgba(201, 161, 75, ${Math.min(0.65, 0.05 + 0.6 * (s.attention / maxAttention))})`;
+    },
+    anomaly: (iso) => {
+      const a = state[iso]?.tension_anomaly;
+      if (a == null || Math.abs(a) < 1) return null; // within 1 sigma: calm, unpainted
+      return a > 0
+        ? `rgba(214, 69, 65, ${Math.min(0.7, 0.2 + 0.15 * a)})`
+        : `rgba(62, 142, 140, ${Math.min(0.7, 0.2 - 0.15 * a)})`;
+    },
+  };
+
+  function lensFill(name) {
+    const expr = ['case'];
+    for (const f of countries.features) {
+      const iso = f.properties.iso;
+      const color = iso && LENSES[name](iso);
+      if (color) expr.push(['==', ['get', 'iso'], iso], color);
     }
+    expr.push('rgba(0,0,0,0)');
+    return expr.length > 2 ? expr : 'rgba(0,0,0,0)';
   }
-  fillColor.push('rgba(0,0,0,0)');
+  const fillColor = lensFill('tone');
+
+  document.getElementById('lens').addEventListener('change', (e) => {
+    map.setPaintProperty('country-fill', 'fill-color', lensFill(e.target.value));
+  });
 
   map.addSource('countries', { type: 'geojson', data: countries });
   const firstSymbolLayer = map.getStyle().layers.find((l) => l.type === 'symbol')?.id;
