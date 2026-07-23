@@ -1,20 +1,27 @@
-"""Enrichment plumbing: select events that need LLM enrichment, apply results.
+"""Enrichment plumbing: select, fetch, and apply. The LLM is the session.
 
 The LLM itself is deliberately NOT called here. A Claude Code session (the
-/enrich skill) is the driver: it runs `pending`, writes the summaries, and
-pipes them into `apply`. Keeping the boundary here means an API-based worker
-could drive the same module later without touching this file.
+/enrich skill) is the driver. Standard ad-hoc flow, three commands:
 
-Usage:
-    python -m extract.enrich pending [limit]     # JSON array to stdout
+    python -m extract.enrich fetch [limit]       # pending events + extracted
+                                                 #   article text, JSON to stdout
+    (session writes summaries from that JSON)
     python -m extract.enrich apply < results.json
+
+`fetch` downloads each pending event's article (grouped by URL) and extracts
+main text with trafilatura. Dead/blocked URLs are marked fetch_failed in the
+event payload and excluded from future runs, so the queue always drains.
+`pending` remains for inspection without fetching; `narrate-pending` /
+`narrate-apply` are the storyline pass.
 """
 
 import json
 import os
 import sys
 
+import httpx
 import psycopg
+import trafilatura
 from dotenv import load_dotenv
 
 PENDING_SQL = """
@@ -23,6 +30,7 @@ PENDING_SQL = """
     FROM events
     WHERE enriched_at IS NULL
       AND importance >= %s
+      AND COALESCE(payload->>'fetch_failed', '') != 'true'
     ORDER BY importance DESC
     LIMIT %s
 """
@@ -68,15 +76,19 @@ def pending(limit: int) -> None:
 
 
 def apply() -> None:
-    items = json.load(sys.stdin)
-    errors = []
-    for item in items:
-        if not isinstance(item.get("id"), int) or not item.get("summary"):
+    """Accepts items with either `id` (int) or `event_ids` (list) from fetch."""
+    raw = json.load(sys.stdin)
+    items, errors = [], []
+    for item in raw:
+        ids = item.get("event_ids") or ([item["id"]] if isinstance(item.get("id"), int) else [])
+        if not ids or not item.get("summary"):
             errors.append(f"bad item: {item}")
             continue
         sev = item.get("severity")
         if not isinstance(sev, int) or not 1 <= sev <= 5:
-            errors.append(f"bad severity on id {item['id']}: {sev!r}")
+            errors.append(f"bad severity on {ids}: {sev!r}")
+            continue
+        items.extend({"id": i, "summary": item["summary"], "severity": sev} for i in ids)
     if errors:
         sys.exit("\n".join(errors))
     with _connect() as conn:
@@ -84,6 +96,54 @@ def apply() -> None:
             cur.executemany(APPLY_SQL, items)
         conn.commit()
     print(f"applied {len(items)} enrichments")
+
+
+def fetch(limit: int) -> None:
+    """Pending events with extracted article text, grouped by URL."""
+    threshold = float(os.environ.get("IMPORTANCE_THRESHOLD", "0.35"))
+    with _connect() as conn:
+        rows = conn.execute(PENDING_SQL, (threshold, limit)).fetchall()
+        by_url: dict[str, list] = {}
+        meta: dict[str, dict] = {}
+        for (id_, event_type, actor1, actor2, country_iso, admin1,
+             tone, goldstein, importance, occurred_at, payload) in rows:
+            url = (payload or {}).get("url")
+            if not url:
+                continue
+            by_url.setdefault(url, []).append(id_)
+            meta[url] = {"event_type": event_type, "actor1": actor1, "actor2": actor2,
+                         "country_iso": country_iso, "importance": importance}
+
+        out, failed = [], []
+        with httpx.Client(timeout=15, follow_redirects=True,
+                          headers={"User-Agent": "Mozilla/5.0 (world-simulator enrich)"}) as client:
+            for url, ids in by_url.items():
+                text = None
+                try:
+                    resp = client.get(url)
+                    if resp.status_code == 200:
+                        text = trafilatura.extract(resp.text, include_comments=False)
+                except httpx.HTTPError:
+                    pass
+                if text:
+                    out.append({"event_ids": ids, "url": url, **meta[url],
+                                "article_excerpt": text[:1800]})
+                else:
+                    failed.extend(ids)
+
+        if failed:
+            conn.execute(
+                """
+                UPDATE events SET payload = COALESCE(payload, '{}'::jsonb) || '{"fetch_failed": "true"}'::jsonb
+                WHERE id = ANY(%s)
+                """,
+                (failed,),
+            )
+            conn.commit()
+
+    json.dump(out, sys.stdout, indent=1)
+    print(f"\n{len(out)} articles fetched for {sum(len(o['event_ids']) for o in out)} events; "
+          f"{len(failed)} events marked fetch_failed and skipped from future runs", file=sys.stderr)
 
 
 NARRATE_PENDING_SQL = """
@@ -155,6 +215,7 @@ def narrate_apply() -> None:
 
 COMMANDS = {
     "pending": lambda: pending(int(sys.argv[2]) if len(sys.argv) > 2 else 50),
+    "fetch": lambda: fetch(int(sys.argv[2]) if len(sys.argv) > 2 else 60),
     "apply": apply,
     "narrate-pending": lambda: narrate_pending(int(sys.argv[2]) if len(sys.argv) > 2 else 20),
     "narrate-apply": narrate_apply,
