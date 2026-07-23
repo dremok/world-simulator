@@ -61,6 +61,30 @@ def events_geojson(
     return {"type": "FeatureCollection", "features": features}
 
 
+@app.get("/layers/country_stats.json")
+def country_stats(hours: int = Query(default=24, ge=1, le=24 * 90)) -> dict:
+    sql = """
+        SELECT country_iso,
+               count(*) AS event_count,
+               avg(tone) AS avg_tone,
+               max(importance) AS max_importance
+        FROM events
+        WHERE occurred_at > now() - make_interval(hours => %s)
+          AND country_iso IS NOT NULL
+        GROUP BY country_iso
+    """
+    with _connect() as conn:
+        rows = conn.execute(sql, (hours,)).fetchall()
+    return {
+        iso: {
+            "count": count,
+            "avg_tone": round(avg_tone, 2) if avg_tone is not None else None,
+            "max_importance": max_importance,
+        }
+        for iso, count, avg_tone, max_importance in rows
+    }
+
+
 # Built frontend, mounted last so API routes win. Missing locally until `npm run build`.
 if WEB_DIST.is_dir():
     app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

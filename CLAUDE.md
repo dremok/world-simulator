@@ -6,8 +6,8 @@ Read `PLAN.md` first. It contains the architecture, schema, data sources, phased
 
 Update this section as work progresses.
 
-- **Current phase:** 0 complete. Live at https://api-production-8a0f.up.railway.app (USGS quakes on the map, schema v1 applied, Railway project wired: api service + Postgres).
-- **Next action:** Phase 1 step 1: GDELT 15-min sync in the worker, plus Railway cron wiring for the worker service.
+- **Current phase:** 1 in progress. Live at https://api-production-8a0f.up.railway.app. Done: GDELT 15-min sync (importance-scored, FIPS→ISO mapped), country_stats endpoint, tone/volume choropleth, worker service on Railway cron (`*/15 * * * *`, set via GraphQL API since per-service config files are dashboard-only).
+- **Next action:** Phase 1 step 2: RSS poller for the Tier-2 feed list (feed list as config), article dedupe by URL + title similarity.
 - **Decision (2026-07-23):** LLM enrichment will run on demand via a Claude Code skill instead of API calls from the worker, to keep API spend at zero. Build `extract/enrich.py` as an idempotent module behind a driver boundary; `ENRICH_ENABLED=false` default in the deployed worker.
 
 ## Architecture in one breath

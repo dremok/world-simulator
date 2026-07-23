@@ -1,0 +1,11 @@
+# Ingest worker: runs once per cron tick and exits.
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY ingest/ ingest/
+COPY extract/ extract/
+COPY sim/ sim/
+COPY db/ db/
+COPY scripts/ scripts/
+CMD ["python", "-m", "ingest.run"]
