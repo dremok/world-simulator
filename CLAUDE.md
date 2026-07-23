@@ -6,8 +6,31 @@ Read `PLAN.md` first. It contains the architecture, schema, data sources, phased
 
 Update this section as work progresses.
 
-- **Current phase:** 0 (nothing built yet; repo contains only planning docs)
-- **Next action:** Phase 0 step 1: repo skeleton + venv + requirements.txt
+- **Current phase:** 0 complete. Live at https://api-production-8a0f.up.railway.app (USGS quakes on the map, schema v1 applied, Railway project wired: api service + Postgres).
+- **Next action:** Phase 1 step 1: GDELT 15-min sync in the worker, plus Railway cron wiring for the worker service.
+- **Decision (2026-07-23):** LLM enrichment will run on demand via a Claude Code skill instead of API calls from the worker, to keep API spend at zero. Build `extract/enrich.py` as an idempotent module behind a driver boundary; `ENRICH_ENABLED=false` default in the deployed worker.
+
+## Architecture in one breath
+
+Feeds (GDELT, RSS, USGS, GDACS) → `ingest/` worker (Railway cron, 15 min) → `extract/` (spaCy + gated Haiku enrichment) → Postgres → `sim/` (per-country state vectors) → `api/` (FastAPI, GeoJSON + SSE) → `web/` (MapLibre map). Planned dirs not yet created: `ingest/`, `extract/`, `sim/`, `api/`, `web/`, `db/migrations/`, `scripts/`. Put new code in the matching stage; details in PLAN.md sections 1-6.
+
+## Commands
+
+```bash
+# Setup
+uv venv && source .venv/bin/activate
+uv pip install -r requirements.txt
+cp .env.example .env                     # config knobs: IMPORTANCE_THRESHOLD, GDELT_ENABLED, RSS_ENABLED
+
+# Develop (all commands below exist from Phase 0/1 onward)
+python scripts/migrate.py                # apply db/migrations/*.sql in order
+railway run python -m ingest.run         # one worker run against the Railway DB
+uvicorn api.main:app --reload            # API locally
+npm run dev                              # frontend, from web/
+
+# Deploy
+railway up
+```
 
 ## Conventions
 

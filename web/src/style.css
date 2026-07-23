@@ -1,0 +1,49 @@
+html,
+body,
+#map {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0b0e12;
+}
+
+#hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: #8a949e;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  background: linear-gradient(rgba(11, 14, 18, 0.85), rgba(11, 14, 18, 0));
+}
+
+#hud-title {
+  text-transform: uppercase;
+  color: #c4ccd4;
+}
+
+.maplibregl-popup-content {
+  background: #151a21;
+  color: #c4ccd4;
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  border: 1px solid #2a323c;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.maplibregl-popup-tip {
+  border-top-color: #151a21 !important;
+  border-bottom-color: #151a21 !important;
+}
+
+.popup-mag {
+  color: #e8b04b;
+  font-weight: 600;
+}
