@@ -209,8 +209,14 @@ map.on('load', async () => {
     if (s.heat <= 0) continue;
     const li = document.createElement('li');
     const color = CLASS_COLOR[s.verb_class] ?? '#6a7683';
+    const spark = (() => {
+      const t = s.timeline ?? [];
+      const max = Math.max(1, ...t);
+      const pts = t.map((v, i) => `${i * 12},${14 - (v / max) * 12}`).join(' ');
+      return `<svg class="spark" width="62" height="15" viewBox="0 0 60 15"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+    })();
     li.innerHTML =
-      `<i class="dot" style="background:${color}"></i>${s.title}` +
+      `<i class="dot" style="background:${color}"></i>${s.title} ${spark}` +
       `<div class="storyline-meta">${s.event_count} events &middot; heat ${s.heat}${s.summary ? '' : ' &middot; unnarrated'}</div>` +
       (s.summary ? `<div class="storyline-meta">${s.summary}</div>` : '');
     li.addEventListener('click', async () => {

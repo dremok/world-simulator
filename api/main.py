@@ -78,6 +78,21 @@ def storylines_list(status: str = Query(default="active"), limit: int = Query(de
     """
     with _connect() as conn:
         rows = conn.execute(sql, (status, limit)).fetchall()
+        # 6 buckets of 12h over the last 72h, oldest first
+        buckets = conn.execute(
+            """
+            SELECT se.storyline_id,
+                   5 - floor(extract(epoch FROM now() - e.occurred_at) / 43200)::int AS bucket,
+                   count(*)
+            FROM storyline_events se JOIN events e ON e.id = se.event_id
+            WHERE e.occurred_at > now() - interval '72 hours'
+            GROUP BY 1, 2
+            """
+        ).fetchall()
+    timelines: dict[int, list[int]] = {}
+    for sid, bucket, count in buckets:
+        if 0 <= bucket <= 5:
+            timelines.setdefault(sid, [0] * 6)[bucket] = count
     return [
         {
             "id": id_,
@@ -92,6 +107,7 @@ def storylines_list(status: str = Query(default="active"), limit: int = Query(de
             "closed_kind": closed_kind,
             "closed_summary": closed_summary,
             "event_count": event_count,
+            "timeline": timelines.get(id_, [0] * 6),
         }
         for id_, title, summary, status_, cluster_key, heat, started_at,
             last_activity_at, closed_kind, closed_summary, event_count in rows

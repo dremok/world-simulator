@@ -199,6 +199,12 @@ body,
   font-size: 10px;
 }
 
+.spark {
+  float: right;
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
 .event-card {
   margin-top: 6px;
   padding: 6px 8px;
