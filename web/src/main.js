@@ -333,4 +333,24 @@ map.on('load', async () => {
   });
 
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') exitRelation(); });
+
+  // ---- 24h diff: what opened and closed since yesterday ----
+  const diffToggle = document.getElementById('diff-toggle');
+  diffToggle.addEventListener('click', async () => {
+    if (!relCard.hidden) { relCard.hidden = true; return; }
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const d = await (await fetch(`/diff?since=${encodeURIComponent(since)}`)).json();
+    const opened = d.opened.slice(0, 8).map((s) =>
+      `<div class="event-card">&#43; ${s.title} <span class="storyline-meta">heat ${s.heat}</span></div>`).join('');
+    const closed = d.closed.slice(0, 8).map((s) =>
+      `<div class="event-card">&minus; ${s.title} <span class="storyline-meta">${s.closed_kind}</span></div>`).join('');
+    relCard.innerHTML =
+      `<span class="rel-title">last 24 hours</span><br>` +
+      `${d.new_events} new events &middot; ${d.opened.length} storylines opened &middot; ${d.closed.length} closed` +
+      (opened ? `<br><br>opened:${opened}` : '') +
+      (closed ? `<br>closed:${closed}` : '') +
+      `<div class="rel-clear">&times; close</div>`;
+    relCard.hidden = false;
+    relCard.querySelector('.rel-clear').addEventListener('click', () => { relCard.hidden = true; });
+  });
 });

@@ -103,6 +103,7 @@ body,
   cursor: pointer;
 }
 
+#diff-toggle,
 #relation-toggle {
   background: none;
   border: 1px solid #2a323c;
