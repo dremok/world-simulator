@@ -47,3 +47,54 @@ body,
   color: #e8b04b;
   font-weight: 600;
 }
+
+.popup-code {
+  color: #5a646e;
+  font-size: 10px;
+}
+
+#legend {
+  position: fixed;
+  bottom: 28px;
+  left: 12px;
+  padding: 10px 12px;
+  background: rgba(11, 14, 18, 0.85);
+  border: 1px solid #2a323c;
+  border-radius: 4px;
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: #8a949e;
+  line-height: 1.7;
+}
+
+.legend-section + .legend-section {
+  margin-top: 8px;
+}
+
+.legend-heading {
+  color: #c4ccd4;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.legend-note {
+  font-size: 10px;
+  color: #5a646e;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 1px;
+}

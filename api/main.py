@@ -32,7 +32,7 @@ def events_geojson(
 ) -> dict:
     sql = """
         SELECT id, external_id, event_type, lat, lon, importance,
-               occurred_at, payload
+               occurred_at, payload, summary, severity
         FROM events
         WHERE occurred_at > now() - make_interval(hours => %s)
           AND importance >= %s
@@ -53,10 +53,12 @@ def events_geojson(
                 "event_type": event_type,
                 "importance": importance,
                 "occurred_at": occurred_at.isoformat(),
+                "summary": summary,
+                "severity": severity,
                 **(payload or {}),
             },
         }
-        for id_, external_id, event_type, lat, lon, importance, occurred_at, payload in rows
+        for id_, external_id, event_type, lat, lon, importance, occurred_at, payload, summary, severity in rows
     ]
     return {"type": "FeatureCollection", "features": features}
 

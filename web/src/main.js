@@ -80,15 +80,41 @@ map.on('load', async () => {
     },
   });
 
+  // News URLs usually carry the headline as a slug; far more honest than
+  // GDELT's machine-coded event type.
+  function slugHeadline(url) {
+    try {
+      const seg = new URL(url).pathname.split('/').filter(Boolean).pop() ?? '';
+      const words = seg
+        .replace(/\.(html?|php|aspx?)$/, '')
+        .split('-')
+        .filter((w) => !/^\d+$/.test(w) && !/^[a-f0-9]{6,}$/.test(w));
+      if (words.length < 3) return null;
+      const s = words.join(' ');
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    } catch {
+      return null;
+    }
+  }
+
   map.on('click', 'events', (e) => {
     const p = e.features[0].properties;
     const when = new Date(p.occurred_at).toUTCString().replace(':00 GMT', ' UTC');
-    const head = p.event_type === 'earthquake'
-      ? `<span class="popup-mag">M ${p.magnitude}</span> ${p.place ?? ''}`
-      : `<span class="popup-mag">${p.event_type.replace(/_/g, ' ')}</span> ${[p.actor1, p.actor2].filter(Boolean).join(' &rarr; ') || ''}`;
+    let body;
+    if (p.event_type === 'earthquake') {
+      body = `<span class="popup-mag">M ${p.magnitude}</span> ${p.place ?? ''}`;
+    } else if (p.summary) {
+      body = `${p.summary}<br><span class="popup-code">severity ${p.severity ?? '?'} &middot; coded ${p.event_type.replace(/_/g, ' ')}</span>`;
+    } else {
+      const headline = slugHeadline(p.url);
+      const actors = [p.actor1, p.actor2].filter(Boolean).join(' &rarr; ');
+      body = headline
+        ? `${headline}<br><span class="popup-code">coded ${p.event_type.replace(/_/g, ' ')}${actors ? ' &middot; ' + actors : ''}</span>`
+        : `<span class="popup-mag">${p.event_type.replace(/_/g, ' ')}</span> ${actors}`;
+    }
     new maplibregl.Popup()
       .setLngLat(e.features[0].geometry.coordinates)
-      .setHTML(`${head}<br>${when}<br><a href="${p.url}" target="_blank" rel="noopener">source</a>`)
+      .setHTML(`${body}<br>${when}<br><a href="${p.url}" target="_blank" rel="noopener">source</a>`)
       .addTo(map);
   });
 
