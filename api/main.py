@@ -264,13 +264,25 @@ def relation(
 def briefing() -> dict:
     """A composed world briefing from enriched data. No LLM at serve time."""
     with _connect() as conn:
+        # Rank by severity-weighted heat, not raw volume: a grab-bag of
+        # sev-1 local items must not outrank a war. avg severity comes from
+        # each storyline's enriched events; unenriched storylines default low.
         stories = conn.execute(
             """
-            SELECT title, summary, heat FROM storylines
-            WHERE status = 'active' AND summary IS NOT NULL
-            ORDER BY heat DESC LIMIT 6
+            SELECT s.title, s.summary, s.heat,
+                   COALESCE((
+                       SELECT sum(power(GREATEST(e.severity - 1, 0), 2))
+                       FROM storyline_events se
+                       JOIN events e ON e.id = se.event_id
+                       WHERE se.storyline_id = s.id AND e.severity IS NOT NULL
+                         AND e.occurred_at > now() - interval '72 hours'
+                   ), 0) + s.heat * 0.01 AS rank
+            FROM storylines s
+            WHERE s.status = 'active' AND s.summary IS NOT NULL
+            ORDER BY rank DESC LIMIT 6
             """
         ).fetchall()
+        stories = [(t, s, h) for t, s, h, _ in stories]
         events = conn.execute(
             """
             SELECT summary, severity FROM events
