@@ -363,6 +363,38 @@ map.on('load', async () => {
 
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') exitRelation(); });
 
+  // ---- SSE: new high-importance events ripple onto the map live ----
+  map.addSource('live-ping', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'live-ping', type: 'circle', source: 'live-ping',
+    paint: {
+      'circle-radius': ['get', 'r'],
+      'circle-color': 'rgba(0,0,0,0)',
+      'circle-stroke-color': TYPE_COLOR,
+      'circle-stroke-width': 1.5,
+      'circle-stroke-opacity': ['get', 'o'],
+    },
+  });
+  const pings = [];
+  setInterval(() => {
+    if (!pings.length) return;
+    for (const p of pings) { p.properties.r += 2.2; p.properties.o = Math.max(0, p.properties.o - 0.06); }
+    for (let i = pings.length - 1; i >= 0; i--) if (pings[i].properties.o <= 0) pings.splice(i, 1);
+    map.getSource('live-ping').setData({ type: 'FeatureCollection', features: pings });
+  }, 90);
+
+  const sse = new EventSource('/events/stream');
+  window.__sse = sse;
+  sse.onmessage = (msg) => {
+    const e = JSON.parse(msg.data);
+    pings.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [e.lon, e.lat] },
+      properties: { r: 4, o: 0.9, event_type: e.event_type },
+    });
+    status.textContent = `live: ${e.summary ? e.summary.slice(0, 60) : e.event_type.replace(/_/g, ' ')}`;
+  };
+
   // ---- Time slider: replay the last 24h of state (15-min steps) ----
   const slider = document.getElementById('timeslider');
   const timelabel = document.getElementById('timelabel');

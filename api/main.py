@@ -1,11 +1,14 @@
 """FastAPI app: GeoJSON layers + static frontend (web/dist) on one URL."""
 
+import json
 import os
+import time
 from pathlib import Path
 
 import psycopg
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
@@ -258,6 +261,42 @@ def relation(
         "avg_goldstein": round(sum(goldsteins) / len(goldsteins), 2) if goldsteins else None,
         "events": {"type": "FeatureCollection", "features": features},
     }
+
+
+@app.get("/events/stream")
+def events_stream() -> StreamingResponse:
+    """SSE: new high-importance events ping onto the map live. Polls the DB
+    every 30s inside the stream; each event is sent once per connection."""
+
+    from datetime import datetime, timezone
+
+    def gen():
+        last_seen = datetime.now(tz=timezone.utc)
+        yield "retry: 15000\n\n"
+        while True:
+            try:
+                with _connect() as conn:
+                    rows = conn.execute(
+                        """
+                        SELECT id, event_type, lat, lon, importance, summary, created_at
+                        FROM events
+                        WHERE importance >= 0.5 AND lat IS NOT NULL
+                          AND created_at > %s
+                        ORDER BY created_at LIMIT 50
+                        """,
+                        (last_seen,),
+                    ).fetchall()
+                for id_, event_type, lat, lon, importance, summary, created_at in rows:
+                    last_seen = max(last_seen, created_at)
+                    payload = {"id": id_, "event_type": event_type, "lat": lat,
+                               "lon": lon, "importance": importance, "summary": summary}
+                    yield f"data: {json.dumps(payload)}\n\n"
+                yield ": keepalive\n\n"
+            except Exception:
+                yield ": db-retry\n\n"
+            time.sleep(30)
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 @app.get("/briefing")
